@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIAPLAPOR DISKOPUKM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { 
+                extend: { 
+                    colors: { 
+                        neonCyan: '#06b6d4',
+                        neonPurple: '#a855f7'
+                    } 
+                } 
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+        /* Glassmorphic elements reflecting premium high-tech dashboard */
+        .glass { 
+            background: rgba(255, 255, 255, 0.75); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(0, 0, 0, 0.08); 
+            transition: all 0.3s ease;
+        }
+        .dark .glass { 
+            background: rgba(15, 23, 42, 0.65); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+        }
+        .loader { border-top-color: #06b6d4; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300 p-4 md:p-8 pb-20">
+
+    <!-- Custom Loading Animation Screen -->
+    <div id="loader" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm">
+        <div class="flex flex-col items-center gap-4">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-800 h-14 w-14"></div>
+            <p id="loaderText" class="text-cyan-400 font-semibold tracking-wide animate-pulse">Mengamankan Laporan...</p>
+        </div>
+    </div>
+
+    <!-- Custom Toast Notification System -->
+    <div id="customToast" class="fixed bottom-5 right-5 z-50 transform translate-y-10 opacity-0 transition-all duration-300 pointer-events-none bg-gradient-to-r from-cyan-600 to-purple-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+        <i data-lucide="shield-check" class="w-5 h-5 text-cyan-200"></i>
+        <span id="toastMessage" class="font-medium text-sm"></span>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 animate-fadeIn">
+        <div class="glass max-w-md w-full rounded-3xl p-6 text-center space-y-5 shadow-2xl">
+            <div class="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+            </div>
+            <div class="space-y-2">
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white" id="confirmTitle">Konfirmasi Tindakan</h3>
+                <p class="text-sm text-slate-600 dark:text-slate-400" id="confirmText">Apakah Anda yakin ingin melakukan tindakan ini?</p>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button id="cancelModalBtn" class="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 py-3 rounded-xl font-semibold transition text-slate-700 dark:text-slate-200">Batal</button>
+                <button id="actionModalBtn" class="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-xl font-semibold text-white transition animate-pulse">Ya, Jalankan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Report Modal -->
+    <div id="previewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md px-4 overflow-y-auto py-8">
+        <div class="glass max-w-2xl w-full rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative my-auto">
+            <button onclick="closePreviewModal()" class="absolute top-5 right-5 p-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl transition">
+                <i data-lucide="x" class="w-5 h-5 text-slate-700 dark:text-slate-300"></i>
+            </button>
+            <div class="border-b border-black/10 dark:border-white/10 pb-4">
+                <h3 class="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Preview Laporan</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pratinjau tampilan terstruktur sebelum diexport</p>
+            </div>
+            <div class="space-y-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200" id="previewModalBody">
+                <!-- Dynamically populated report preview -->
+            </div>
+            <div class="flex gap-3 border-t border-black/10 dark:border-white/10 pt-4">
+                <button onclick="closePreviewModal()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white py-3 rounded-xl font-semibold transition">Tutup Pratinjau</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main UI Container -->
+    <main class="max-w-2xl mx-auto space-y-8">
+        
+        <!-- Header with Glowing Logo, Status Indicators & Light Switch -->
+        <header class="flex justify-between items-center bg-slate-200/50 dark:bg-slate-900/40 p-4 rounded-2xl border border-black/5 dark:border-white/5 shadow-lg">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i data-lucide="shield-check" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">SIAPLAPOR</h1>
+                    <p class="text-[9px] tracking-widest uppercase text-slate-500 dark:text-slate-400">DISKOPUKM SECURE PLATFORM</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div id="securityBadge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-ping"></span>
+                    <span id="securityBadgeText">Menghubungkan...</span>
+                </div>
+                <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-300/50 dark:bg-slate-900/60 border border-black/5 dark:border-white/10 hover:border-cyan-500/50 hover:bg-slate-300 dark:hover:bg-slate-900 transition-all duration-300">
+                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-cyan-400"></i>
+                    <i data-lucide="moon" class="w-4 h-4 block dark:hidden text-purple-600"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- User Cloud Credentials Info Area -->
+        <div class="glass rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div class="space-y-1">
+                <span class="text-slate-500 dark:text-slate-400 block">Secure Device Key (UID) Anda:</span>
+                <span id="userKeyText" class="font-mono font-bold tracking-wider text-cyan-600 dark:text-cyan-400 break-all select-all">Mencari kunci perangkat...</span>
+            </div>
+            <button onclick="copyDeviceKey()" class="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition font-semibold self-stretch sm:self-auto justify-center">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Kunci
+            </button>
+        </div>
+
+        <!-- Dynamic Form Fields -->
+        <form id="reportForm" onsubmit="event.preventDefault();" class="glass rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+            
+            <!-- Dynamic Employee Inputs -->
+            <div id="employeesList" class="space-y-3">
+                <label class="block text-sm font-semibold tracking-wide flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <i data-lucide="users" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i> Nama Pegawai Hadir
+                </label>
+                <div class="flex gap-2">
+                    <input type="text" name="employee" placeholder="Nama Pegawai" class="w-full bg-slate-100/50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-cyan-500 transition-all duration-200 text-slate-800 dark:text-slate-100">
+                    <button type="button" onclick="addEmployee()" class="bg-slate-200 dark:bg-slate-800 hover:bg-cyan-600 dark:hover:bg-cyan-600 text-slate-700 dark:text-white px-4 rounded-xl transition-colors duration-200 shadow-md">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Time inputs configuration -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-xs text-slate-500 dark:text-slate-400 font-semibold">Tanggal Kegiatan</label>
+                    <input type="date" id="date" class="w-full bg-slate-100/50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-cyan-500 transition-all duration-200 text-slate-800 dark:text-slate-100">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs text-slate-500 dark:text-slate-400 font-semibold">Waktu Kegiatan</label>
+                    <input type="time" id="time" class="w-full bg-slate-100/50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-cyan-500 transition-all duration-200 text-slate-800 dark:text-slate-100">
+                </div>
+            </div>
+
+            <!-- Dynamic Inputs -->
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold tracking-wide flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <i data-lucide="briefcase" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i> Nama Kegiatan
+                </label>
+                <input type="text" id="activity" placeholder="Ketik nama kegiatan resmi..." class="w-full bg-slate-100/50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-cyan-500 transition text-slate-800 dark:text-slate-100">
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold tracking-wide flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i> Tempat Kegiatan
+                </label>
+                <input type="text" id="location" placeholder="Lokasi pelaksanaan kegiatan..." class="w-full bg-slate-100/50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-cyan-500 transition text-slate-800 dark:text-slate-100">
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold tracking-wide flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <i data-lucide="file-text" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i> Uraian Kegiatan
+                </label>
+                <textarea id="description" rows="4" placeholder="Tuliskan jalannya kegiatan secara lengkap..." class="w-full bg-slate-100/50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-cyan-500 transition text-slate-800 dark:text-slate-100"></textarea>
+            </div>
+
+            <!-- Photo Upload Area Supporting Multi-input and on-the-fly safe compression -->
+            <div class="space-y-3">
+                <label class="block text-sm font-semibold tracking-wide flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <i data-lucide="camera" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i> Dokumentasi Foto (Kompresi Otomatis)
+                </label>
+                <div class="relative group border-2 border-dashed border-slate-300 dark:border-slate-800 hover:border-cyan-500/50 rounded-2xl p-6 transition-all duration-300 text-center cursor-pointer bg-slate-100/30 dark:bg-slate-950/20">
+                    <input type="file" id="photoInput" multiple accept="image/*" onchange="handlePhotoUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10">
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="p-3 bg-cyan-500/10 rounded-full text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition duration-300">
+                            <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Ketuk untuk Mengunggah Foto</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Foto dikompresi otomatis agar hemat ruang penyimpanan</p>
+                    </div>
+                </div>
+                <div id="photoPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-2"></div>
+            </div>
+
+            <!-- Dynamic Interactive Actions -->
+            <div class="pt-4 flex flex-col sm:flex-row gap-3" id="formActionsContainer">
+                <button type="button" id="submitBtn" onclick="submitReport()" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white py-4 rounded-2xl font-bold transition duration-300 shadow-xl shadow-cyan-500/10 flex justify-center items-center gap-2">
+                    <i data-lucide="send" class="w-5 h-5"></i> <span id="submitBtnText">Kirim Laporan</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- History Logs Section -->
+        <section class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold flex items-center gap-2 text-slate-800 dark:text-white">
+                    <i data-lucide="history" class="w-5 h-5 text-purple-600 dark:text-purple-400"></i> Riwayat Laporan Terkirim
+                </h2>
+                <span id="historyCount" class="text-xs bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full border border-black/5 dark:border-white/5 font-semibold">0 Laporan</span>
+            </div>
+            
+            <div id="historyList" class="space-y-4">
+                <!-- Dynamically injected values -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Secure Application Engine Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Constants and Application State
+        let db = null;
+        let auth = null;
+        let isCloudMode = false;
+        let currentUserId = "offline-user";
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'siaplapor-diskopukm-secure';
+        let firebaseConfig = null;
+
+        // Verify Firebase config variables presence
+        if (typeof __firebase_config !== 'undefined') {
+            try {
+                firebaseConfig = JSON.parse(__firebase_config);
+            } catch (err) {
+                console.error("Kesalahan format Firebase Config:", err);
+            }
+        }
+
+        // Initialize security engines
+        async function initializeSecurityEngine() {
+            const statusBadgeText = document.getElementById('securityBadgeText');
+            const statusBadge = document.getElementById('securityBadge');
+            const userKeyLabel = document.getElementById('userKeyText');
+
+            if (firebaseConfig) {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    // Check custom token availability before falling back to anonymous logins
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            currentUserId = user.uid;
+                            isCloudMode = true;
+                            statusBadgeText.innerText = "Cloud Terkoneksi";
+                            statusBadge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/20";
+                            userKeyLabel.innerText = currentUserId;
+                            
+                            // Load secure synchronized database pipeline
+                            listenToSecureHistory();
+                        } else {
+                            activateLocalSecureMode();
+                        }
+                    });
+
+                } catch (err) {
+                    console.error("Kesalahan inisiasi sistem cloud. Beralih ke sistem offline lokal:", err);
+                    activateLocalSecureMode();
+                }
+            } else {
+                activateLocalSecureMode();
+            }
+        }
+
+        function activateLocalSecureMode() {
+            isCloudMode = false;
+            currentUserId = "local-device";
+            const statusBadgeText = document.getElementById('securityBadgeText');
+            const statusBadge = document.getElementById('securityBadge');
+            const userKeyLabel = document.getElementById('userKeyText');
+
+            statusBadgeText.innerText = "Sistem Lokal (Aman)";
+            statusBadge.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold border border-amber-500/20";
+            userKeyLabel.innerText = "Offline (Local Device)";
+            
+            loadLocalHistory();
+        }
+
+        // Fetch or subscribe reports according to security state
+        let unsubscribeHistory = null;
+        function listenToSecureHistory() {
+            if (!isCloudMode || !db) return;
+
+            // Secure User-Specific Path according to Mandatory Rules
+            const reportsColRef = collection(db, 'artifacts', appId, 'users', currentUserId, 'reports');
+
+            // Set-up listener with robust error boundaries
+            unsubscribeHistory = onSnapshot(reportsColRef, (snapshot) => {
+                const reports = [];
+                snapshot.forEach(doc => {
+                    reports.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Keep memory sorting safe and predictable in JavaScript to avoid complex indices errors
+                reports.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                renderHistory(reports);
+            }, (error) => {
+                console.error("Kesalahan sinkronisasi real-time cloud:", error);
+                showToast("Koneksi cloud terganggu, menyajikan fallback...");
+            });
+        }
+
+        function loadLocalHistory() {
+            const reports = JSON.parse(localStorage.getItem('secure_reports') || '[]');
+            reports.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            renderHistory(reports);
+        }
+
+        window.isCloudMode = () => isCloudMode;
+        window.getDb = () => db;
+        window.getAuth = () => auth;
+        window.getAppId = () => appId;
+        window.getUserId = () => currentUserId;
+        window.loadLocalHistory = loadLocalHistory;
+        window.firestoreDoc = doc;
+        window.firestoreSetDoc = setDoc;
+        window.firestoreDeleteDoc = deleteDoc;
+
+        // Initialize on launch
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeSecurityEngine();
+        });
+    </script>
+
+    <!-- UI Controllers and Operation Logic scripts -->
+    <script>
+        let uploadedPhotos = [];
+        let editingReportId = null;
+        let pendingAction = null;
+
+        window.onload = function() {
+            lucide.createIcons();
+            setDefaultDatetime();
+        };
+
+        // UI Helpers
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('customToast');
+            const txt = document.getElementById('toastMessage');
+            txt.innerText = message;
+            toast.className = toast.className.replace('translate-y-10 opacity-0 pointer-events-none', 'translate-y-0 opacity-100');
+            setTimeout(() => {
+                toast.className = toast.className.replace('translate-y-0 opacity-100', 'translate-y-10 opacity-0 pointer-events-none');
+            }, 3500);
+        }
+
+        // Custom Confirmations
+        function showConfirmModal(title, text, onConfirm) {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmText').innerText = text;
+            modal.classList.remove('hidden');
+            pendingAction = onConfirm;
+        }
+
+        document.getElementById('cancelModalBtn').addEventListener('click', () => {
+            document.getElementById('confirmModal').classList.add('hidden');
+            pendingAction = null;
+        });
+
+        document.getElementById('actionModalBtn').addEventListener('click', () => {
+            if (typeof pendingAction === 'function') {
+                pendingAction();
+            }
+            document.getElementById('confirmModal').classList.add('hidden');
+            pendingAction = null;
+        });
+
+        function copyDeviceKey() {
+            const userKey = document.getElementById('userKeyText').innerText;
+            if (userKey && !userKey.includes("Mencari")) {
+                // Fallback copying mechanics for secure sandboxing environment
+                const el = document.createElement('textarea');
+                el.value = userKey;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast("Device Key disalin ke clipboard!");
+            } else {
+                showToast("Belum terhubung ke enkripsi cloud.");
+            }
+        }
+
+        function setDefaultDatetime() {
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            const timeStr = today.toTimeString().split(' ')[0].substring(0, 5);
+            document.getElementById('date').value = dateStr;
+            document.getElementById('time').value = timeStr;
+        }
+
+        function addEmployee(value = "") {
+            const container = document.getElementById('employeesList');
+            const div = document.createElement('div');
+            div.className = "flex gap-2 employee-row mt-2 animate-fadeIn";
+            div.innerHTML = `
+                <input type="text" name="employee" value="${value}" placeholder="Nama Pegawai" class="w-full bg-slate-100/50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-cyan-500 transition-all duration-200 text-slate-800 dark:text-slate-100">
+                <button type="button" onclick="this.parentElement.remove()" class="bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white px-4 rounded-xl transition-all duration-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            `;
+            container.appendChild(div);
+            lucide.createIcons();
+        }
+
+        // Safe Compressor supporting unlimited imports without firestore size overheads
+        function handlePhotoUpload(event) {
+            const files = Array.from(event.target.files);
+            
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const dataUrl = e.target.result;
+                    // Auto compress image dimensions to max 500x500 at 0.6 quality (Ensuring < 150KB database size per image)
+                    compressImage(dataUrl, 500, 500, 0.6).then(compressedUrl => {
+                        uploadedPhotos.push(compressedUrl);
+                        renderPhotoPreview(compressedUrl, uploadedPhotos.length - 1);
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = ''; // Clean input
+        }
+
+        function compressImage(base64Str, maxWidth, maxHeight, quality) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = base64Str;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width *= maxHeight / height;
+                            height = maxHeight;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+            });
+        }
+
+        function renderPhotoPreview(dataUrl, index) {
+            const preview = document.getElementById('photoPreview');
+            const div = document.createElement('div');
+            div.className = "relative group aspect-square rounded-xl overflow-hidden border border-slate-300 dark:border-slate-800 shadow-md animate-fadeIn";
+            div.setAttribute('data-index', index);
+            div.innerHTML = `
+                <img src="${dataUrl}" class="w-full h-full object-cover transition duration-300 group-hover:scale-110">
+                <button type="button" onclick="removePhoto(${index})" class="absolute top-1 right-1 p-1.5 bg-red-600/90 hover:bg-red-600 rounded-lg text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            `;
+            preview.appendChild(div);
+            lucide.createIcons();
+        }
+
+        function removePhoto(idx) {
+            uploadedPhotos.splice(idx, 1);
+            rebuildPhotoPreviews();
+        }
+
+        function rebuildPhotoPreviews() {
+            const preview = document.getElementById('photoPreview');
+            preview.innerHTML = '';
+            uploadedPhotos.forEach((photo, idx) => {
+                renderPhotoPreview(photo, idx);
+            });
+        }
+
+        // Form submisson handler
+        async function submitReport() {
+            const loader = document.getElementById('loader');
+            const loaderText = document.getElementById('loaderText');
+            
+            try {
+                const activityVal = document.getElementById('activity').value.trim();
+                const dateVal = document.getElementById('date').value;
+                const timeVal = document.getElementById('time').value;
+                const locationVal = document.getElementById('location').value.trim();
+                const descVal = document.getElementById('description').value.trim();
+
+                const employees = Array.from(document.querySelectorAll('input[name="employee"]'))
+                    .map(inp => inp.value.trim())
+                    .filter(val => val !== "");
+
+                if (!activityVal) {
+                    showToast("Nama kegiatan wajib diisi!");
+                    return;
+                }
+
+                loaderText.innerText = "Mengamankan data laporan...";
+                loader.classList.remove('hidden');
+
+                const recordId = editingReportId ? editingReportId : Date.now().toString();
+                const reportPayload = {
+                    activity: activityVal,
+                    date: dateVal,
+                    time: timeVal,
+                    location: locationVal,
+                    description: descVal,
+                    employees: employees,
+                    photos: [...uploadedPhotos],
+                    updatedAt: new Date().toLocaleString(),
+                    createdAt: editingReportId ? Number(editingReportId) : Date.now()
+                };
+
+                const cloudActive = window.isCloudMode();
+                
+                if (cloudActive) {
+                    const firebaseDb = window.getDb();
+                    const appIdentifier = window.getAppId();
+                    const userIdentifier = window.getUserId();
+
+                    if (firebaseDb && window.firestoreDoc && window.firestoreSetDoc) {
+                        const docRef = window.firestoreDoc(firebaseDb, 'artifacts', appIdentifier, 'users', userIdentifier, 'reports', recordId);
+                        await window.firestoreSetDoc(docRef, reportPayload);
+                        showToast(editingReportId ? "Laporan berhasil diperbarui di Cloud!" : "Laporan terkirim ke Cloud!");
+                    } else {
+                        throw new Error("Sistem Database Cloud terputus.");
+                    }
+                } else {
+                    // Fallback local engine
+                    let history = JSON.parse(localStorage.getItem('secure_reports') || '[]');
+                    if (editingReportId) {
+                        const index = history.findIndex(rep => rep.id === editingReportId);
+                        if (index !== -1) {
+                            history[index] = { id: recordId, ...reportPayload };
+                        }
+                    } else {
+                        history.unshift({ id: recordId, ...reportPayload });
+                    }
+                    localStorage.setItem('secure_reports', JSON.stringify(history));
+                    window.loadLocalHistory();
+                    showToast(editingReportId ? "Perubahan laporan lokal disimpan!" : "Laporan lokal tersimpan!");
+                }
+
+                cancelEditState();
+                resetFormState();
+
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal menyimpan laporan: " + err.message);
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function resetFormState() {
+            document.getElementById('reportForm').reset();
+            setDefaultDatetime();
+            
+            // Clear dynamic values safely
+            document.querySelectorAll('.employee-row').forEach(row => row.remove());
+            uploadedPhotos = [];
+            document.getElementById('photoPreview').innerHTML = '';
+        }
+
+        // Consolidated and fully robust reports list renderer
+        function renderHistory(history) {
+            // Secure sync local cache mirror instantly inside the core renderer 
+            localStorage.setItem('secure_reports', JSON.stringify(history));
+
+            const container = document.getElementById('historyList');
+            document.getElementById('historyCount').innerText = `${history.length} Laporan`;
+
+            if (history.length === 0) {
+                container.innerHTML = `
+                    <div class="glass p-8 rounded-2xl text-center space-y-2 opacity-60">
+                        <i data-lucide="folder-open" class="w-10 h-10 mx-auto text-slate-500"></i>
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Belum ada riwayat laporan</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Laporan yang terkirim akan disinkronisasikan ke sini</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = history.map(item => {
+                const totalPhotos = item.photos ? item.photos.length : 0;
+                const escId = typeof item.id === 'string' ? item.id : String(item.id);
+                
+                return `
+                    <div class="glass p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-cyan-500/35 transition-all duration-300">
+                        <div class="space-y-1">
+                            <h4 class="font-bold text-slate-900 dark:text-slate-100 tracking-wide">${item.activity}</h4>
+                            <p class="text-xs opacity-70 flex items-center gap-2 flex-wrap text-slate-600 dark:text-slate-300">
+                                <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400"></i> ${item.date}</span> 
+                                <span class="opacity-30">|</span> 
+                                <span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-purple-600 dark:text-purple-400"></i> ${item.location || '-'}</span>
+                            </p>
+                            <p class="text-xs opacity-50 flex items-center gap-1.5 pt-1 text-slate-500 dark:text-slate-400">
+                                <i data-lucide="users" class="w-3.5 h-3.5"></i> ${item.employees ? item.employees.length : 0} Pegawai
+                                <span class="opacity-30">•</span>
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> ${totalPhotos} Foto Dokumentasi
+                            </p>
+                        </div>
+                        
+                        <!-- Modular Action Buttons Panel -->
+                        <div class="flex items-center gap-2 w-full md:w-auto border-t md:border-t-0 border-slate-300 dark:border-white/5 pt-3 md:pt-0">
+                            <button onclick="shareWhatsApp('${escId}')" class="flex-1 md:flex-initial p-2.5 bg-slate-200 dark:bg-slate-900/60 hover:bg-green-500/10 hover:text-green-500 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-white/5 rounded-xl transition flex justify-center items-center gap-1 text-xs font-semibold" title="Bagikan ke WhatsApp">
+                                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 1.981 14.115.953 11.5.951c-5.44 0-9.866 4.372-9.87 9.802 0 1.714.452 3.393 1.31 4.887l-.994 3.633 3.701-.97zm11.367-6.2c-.318-.16-1.88-.927-2.171-1.033-.292-.105-.504-.158-.717.159-.212.318-.82.1-.03-.1.144-.1.1.258-.212.424l-.16.08a1.01 1.01 0 0 1-.366.12c-.22.046-.43.08-.636.103a11.166 11.166 0 0 1-2.316-.367c-1.002-.387-1.823-1.037-2.433-1.925-.333-.48-.602-1.008-.797-1.567-.225-.646-.225-1.127.106-1.444.137-.132.32-.367.482-.55a2.227 2.227 0 0 0 .317-.501c.106-.212.053-.397-.026-.556-.08-.158-.717-1.728-.982-2.364-.258-.622-.516-.54-.717-.55-.185-.01-.397-.01-.61-.01-.212 0-.556.08-.847.4a3.176 3.176 0 0 0-1.007 2.337c0 1.378.504 2.701 1.22 3.655.07.094.138.182.203.266l.011.015a13.364 13.364 0 0 0 5.434 4.8c1.378.57 2.311.666 3.136.544.757-.112 2.32-.948 2.65-1.867.33-.918.33-1.706.231-1.867-.099-.16-.363-.265-.68-.425z"/>
+                                </svg>
+                            </button>
+                            <button onclick="previewReport('${escId}')" class="p-2.5 bg-slate-200 dark:bg-slate-900/60 hover:bg-cyan-500/15 hover:text-cyan-500 dark:hover:text-cyan-400 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-white/5 rounded-xl transition" title="Preview Laporan">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="editReport('${escId}')" class="p-2.5 bg-slate-200 dark:bg-slate-900/60 hover:bg-amber-500/15 hover:text-amber-500 dark:hover:text-amber-400 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-white/5 rounded-xl transition" title="Edit Laporan">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="exportHistoryItem('${escId}')" class="p-2.5 bg-slate-200 dark:bg-slate-900/60 hover:bg-emerald-500/15 hover:text-emerald-500 dark:hover:text-emerald-400 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-white/5 rounded-xl transition" title="Unduh PDF Resmi">
+                                <i data-lucide="file-text" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="confirmDeleteReport('${escId}')" class="p-2.5 bg-slate-200 dark:bg-slate-900/60 hover:bg-red-500/15 hover:text-red-500 dark:hover:text-red-400 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-white/5 rounded-xl transition" title="Hapus Laporan">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Formatter matching exact requirements for clean WhatsApp transfers
+        async function shareWhatsApp(id) {
+            try {
+                const item = findReportInLocalOrCloud(id);
+                if (!item) {
+                    showToast("Laporan tidak ditemukan!");
+                    return;
+                }
+
+                const title = "*SIAPLAPOR DISKOPUKM - DAILY REPORT*";
+                const separator = "==========================================";
+                const opener = "Bismillahirahmanirrahiim\nIzin menyampaikan laporan:";
+                
+                const activityStr = `*Nama Kegiatan:* ${item.activity || '-'}`;
+                const dateStr = `*Tanggal Kegiatan:* ${item.date || '-'}`;
+                const timeStr = `*Waktu Kegiatan:* ${item.time || '-'}`;
+                const locationStr = `*Tempat Kegiatan:* ${item.location || '-'}`;
+                const employeesStr = `*Pegawai Hadir:* ${item.employees && item.employees.length > 0 ? item.employees.join(', ') : '-'}`;
+                const descStr = `*Uraian Kegiatan:*\n${item.description || '-'}`;
+                
+                const footer = "Demikian laporan ini dibuat.\nTerima Kasih.";
+
+                const formattedText = [
+                    title,
+                    separator,
+                    opener,
+                    "",
+                    activityStr,
+                    dateStr,
+                    timeStr,
+                    locationStr,
+                    employeesStr,
+                    "",
+                    descStr,
+                    "",
+                    separator,
+                    footer
+                ].join('\n');
+
+                // Try Web Share API (Best for Gadgets/Smartphones to share Text and Images simultaneously)
+                if (navigator.share && item.photos && item.photos.length > 0) {
+                    try {
+                        const filesArray = [];
+                        item.photos.forEach((photoBase64, index) => {
+                            // Limit maximum attachments to avoid OS share payload overflows (Limit to 5)
+                            if (index < 5) {
+                                const file = dataURLtoFile(photoBase64, `dokumentasi_${index + 1}.jpg`);
+                                filesArray.push(file);
+                            }
+                        });
+
+                        if (navigator.canShare && navigator.canShare({ files: filesArray })) {
+                            await navigator.share({
+                                files: filesArray,
+                                title: 'SIAPLAPOR DISKOPUKM',
+                                text: formattedText
+                            });
+                            showToast("Laporan & Dokumentasi berhasil dibagikan!");
+                            return;
+                        }
+                    } catch (shareErr) {
+                        console.warn("Sistem berbagi native terhenti atau dibatalkan:", shareErr);
+                    }
+                }
+
+                // Fallback for computers or browsers that do not support File Sharing directly
+                const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(formattedText)}`;
+                window.open(waUrl, '_blank');
+                
+                if (item.photos && item.photos.length > 0) {
+                    showToast("Teks laporan terkirim! Silakan lampirkan foto dokumentasi secara manual.");
+                } else {
+                    showToast("Menghubungkan ke WhatsApp...");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal memproses pengiriman WhatsApp.");
+            }
+        }
+
+        // Helper function to safely convert Base64 format to Blob File objects
+        function dataURLtoFile(dataurl, filename) {
+            var arr = dataurl.split(','),
+                mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]), 
+                n = bstr.length, 
+                u8arr = new Uint8Array(n);
+            while(n--){
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], filename, {type:mime});
+        }
+
+        // Modal Preview Manager
+        function previewReport(id) {
+            const item = findReportInLocalOrCloud(id);
+            if (!item) {
+                showToast("Gagal memuat pratinjau.");
+                return;
+            }
+
+            const body = document.getElementById('previewModalBody');
+            body.innerHTML = `
+                <div class="space-y-3 bg-slate-200/50 dark:bg-slate-900/30 p-4 rounded-2xl border border-black/5 dark:border-white/5">
+                    <p class="text-xs italic opacity-75">"Bismillahirahmanirrahiim. Izin menyampaikan laporan."</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div><strong class="opacity-55 block text-slate-500 dark:text-slate-400">Nama Kegiatan:</strong> ${item.activity}</div>
+                        <div><strong class="opacity-55 block text-slate-500 dark:text-slate-400">Tanggal & Waktu:</strong> ${item.date} / ${item.time || '-'}</div>
+                        <div><strong class="opacity-55 block text-slate-500 dark:text-slate-400">Tempat Kegiatan:</strong> ${item.location || '-'}</div>
+                        <div><strong class="opacity-55 block text-slate-500 dark:text-slate-400">Pegawai Hadir:</strong> ${item.employees && item.employees.length > 0 ? item.employees.join(', ') : '-'}</div>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <strong class="text-xs opacity-55 block text-slate-500 dark:text-slate-400">Uraian Kegiatan:</strong>
+                    <p class="text-xs bg-white dark:bg-slate-950/40 p-4 rounded-xl border border-black/5 dark:border-white/5 max-h-40 overflow-y-auto whitespace-pre-wrap">${item.description || '-'}</p>
+                </div>
+                ${item.photos && item.photos.length > 0 ? `
+                    <div class="space-y-2">
+                        <strong class="text-xs opacity-55 block text-slate-500 dark:text-slate-400">Dokumentasi (${item.photos.length} Foto):</strong>
+                        <div class="grid grid-cols-3 gap-2">
+                            ${item.photos.map(p => `<img src="${p}" class="h-16 w-full object-cover rounded-lg border border-black/5 dark:border-white/10">`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+
+            document.getElementById('previewModal').classList.remove('hidden');
+        }
+
+        function closePreviewModal() {
+            document.getElementById('previewModal').classList.add('hidden');
+        }
+
+        // Load report into editor elements
+        function editReport(id) {
+            const item = findReportInLocalOrCloud(id);
+            if (!item) {
+                showToast("Laporan gagal dimuat.");
+                return;
+            }
+
+            editingReportId = id;
+
+            document.getElementById('activity').value = item.activity || '';
+            document.getElementById('date').value = item.date || '';
+            document.getElementById('time').value = item.time || '';
+            document.getElementById('location').value = item.location || '';
+            document.getElementById('description').value = item.description || '';
+
+            // Loading Dynamic employee inputs
+            document.querySelectorAll('.employee-row').forEach(row => row.remove());
+            if (item.employees && item.employees.length > 0) {
+                const first = document.querySelector('input[name="employee"]');
+                if (first) first.value = item.employees[0];
+                for (let i = 1; i < item.employees.length; i++) {
+                    addEmployee(item.employees[i]);
+                }
+            } else {
+                const first = document.querySelector('input[name="employee"]');
+                if (first) first.value = '';
+            }
+
+            uploadedPhotos = item.photos ? [...item.photos] : [];
+            rebuildPhotoPreviews();
+
+            // Transform Actions layout
+            document.getElementById('submitBtnText').innerText = "Simpan Perubahan";
+            
+            if (!document.getElementById('cancelEditBtn')) {
+                const formActions = document.getElementById('formActionsContainer');
+                const cancelBtn = document.createElement('button');
+                cancelBtn.type = "button";
+                cancelBtn.id = "cancelEditBtn";
+                cancelBtn.className = "flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white py-4 rounded-2xl font-bold transition duration-300 flex justify-center items-center gap-2";
+                cancelBtn.innerHTML = `<i data-lucide="x" class="w-5 h-5"></i> Batal Edit`;
+                cancelBtn.onclick = cancelEditState;
+                formActions.appendChild(cancelBtn);
+                lucide.createIcons();
+            }
+
+            document.getElementById('reportForm').scrollIntoView({ behavior: 'smooth' });
+            showToast("Memuat laporan terpilih ke formulir...");
+        }
+
+        function cancelEditState() {
+            editingReportId = null;
+            document.getElementById('submitBtnText').innerText = "Kirim Laporan";
+            const cancelBtn = document.getElementById('cancelEditBtn');
+            if (cancelBtn) cancelBtn.remove();
+            resetFormState();
+        }
+
+        // Delete handler
+        function confirmDeleteReport(id) {
+            showConfirmModal(
+                "Hapus Laporan Secara Permanen?",
+                "Tindakan ini tidak dapat dibatalkan. Berkas laporan akan dihapus sepenuhnya dari server aman.",
+                async () => {
+                    const loader = document.getElementById('loader');
+                    loader.classList.remove('hidden');
+                    
+                    try {
+                        const cloudActive = window.isCloudMode();
+                        if (cloudActive) {
+                            const firebaseDb = window.getDb();
+                            const appIdentifier = window.getAppId();
+                            const userIdentifier = window.getUserId();
+                            
+                            if (firebaseDb && window.firestoreDoc && window.firestoreDeleteDoc) {
+                                const docRef = window.firestoreDoc(firebaseDb, 'artifacts', appIdentifier, 'users', userIdentifier, 'reports', id);
+                                await window.firestoreDeleteDoc(docRef);
+                                showToast("Laporan dihapus dari Cloud!");
+                            } else {
+                                throw new Error("Sistem Database Cloud terputus.");
+                            }
+                        } else {
+                            let history = JSON.parse(localStorage.getItem('secure_reports') || '[]');
+                            history = history.filter(item => item.id !== id);
+                            localStorage.setItem('secure_reports', JSON.stringify(history));
+                            window.loadLocalHistory();
+                            showToast("Laporan lokal dihapus!");
+                        }
+
+                        if (editingReportId === id) {
+                            cancelEditState();
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Gagal menghapus laporan: " + err.message);
+                    } finally {
+                        loader.classList.add('hidden');
+                    }
+                }
+            );
+        }
+
+        // Search engine wrapper
+        function findReportInLocalOrCloud(id) {
+            const history = JSON.parse(localStorage.getItem('secure_reports') || '[]');
+            return history.find(x => String(x.id) === String(id));
+        }
+
+        // Advanced left-align formatting compiler matching specific requested structures
+        async function exportHistoryItem(id) {
+            const loader = document.getElementById('loader');
+            const loaderText = document.getElementById('loaderText');
+            loaderText.innerText = "Menghimpun Berkas PDF...";
+            loader.classList.remove('hidden');
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const r = findReportInLocalOrCloud(id);
+                
+                if (!r) throw new Error("Gagal mengambil data untuk kompilasi PDF.");
+
+                const doc = new jsPDF('p', 'mm', 'a4');
+                
+                // Define 0.5 inch in millimeters (1 inch = 25.4mm, 0.5 inch = 12.7mm)
+                const margin = 12.7;
+                const pageHeight = 297;
+                const pageWidth = 210;
+                const printableWidth = pageWidth - (margin * 2); // 184.6 mm
+                const bottomBoundary = pageHeight - margin;
+
+                let y = margin;
+
+                // Pagination monitor function
+                function addPageIfNeeded(requiredHeight) {
+                    if (y + requiredHeight > bottomBoundary) {
+                        doc.addPage();
+                        y = margin;
+                    }
+                }
+
+                // Header Setup
+                doc.setFontSize(14);
+                doc.setFont("helvetica", "bold");
+                doc.text("SIAPLAPOR DISKOPUKM", margin, y);
+                y += 6;
+
+                // Fine Separator
+                doc.setDrawColor(180, 180, 180);
+                doc.line(margin, y, pageWidth - margin, y);
+                y += 10;
+
+                // Formal Openers
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "italic");
+                doc.text("Bismillahirahmanirrahiim", margin, y);
+                y += 6;
+                doc.text("Izin menyampaikan laporan:", margin, y);
+                y += 10;
+
+                // Core details compilation
+                const mappedFields = [
+                    { label: "Nama Kegiatan", val: r.activity },
+                    { label: "Tanggal Kegiatan", val: r.date },
+                    { label: "Waktu Kegiatan", val: r.time || '-' },
+                    { label: "Pegawai Hadir", val: r.employees && r.employees.length > 0 ? r.employees.join(', ') : '-' }
+                ];
+
+                doc.setFont("helvetica", "normal");
+                mappedFields.forEach(field => {
+                    addPageIfNeeded(10);
+                    
+                    doc.setFont("helvetica", "bold");
+                    doc.text(`${field.label}: `, margin, y);
+                    const labelWidth = doc.getTextWidth(`${field.label}: `);
+                    
+                    doc.setFont("helvetica", "normal");
+                    const lines = doc.splitTextToSize(field.val, printableWidth - labelWidth);
+                    
+                    lines.forEach((line, index) => {
+                        addPageIfNeeded(6);
+                        doc.text(line, margin + labelWidth, y + (index * 6));
+                    });
+                    
+                    y += (lines.length * 6) + 3;
+                });
+
+                y += 4;
+
+                // Uraian Kegiatan Section
+                addPageIfNeeded(15);
+                doc.setFont("helvetica", "bold");
+                doc.text("Uraian Kegiatan:", margin, y);
+                y += 7;
+
+                doc.setFont("helvetica", "normal");
+                const descLines = doc.splitTextToSize(r.description || '', printableWidth);
+                descLines.forEach(line => {
+                    addPageIfNeeded(6);
+                    doc.text(line, margin, y);
+                    y += 6;
+                });
+
+                y += 10;
+
+                // Footer section
+                addPageIfNeeded(15);
+                doc.setFont("helvetica", "italic");
+                doc.text("Demikian laporan ini dibuat.", margin, y);
+                y += 6;
+                doc.text("Terima Kasih.", margin, y);
+
+                // Photo Layout configuration - Dedicated Pages (Collage styles)
+                if (r.photos && r.photos.length > 0) {
+                    doc.addPage();
+                    y = margin;
+
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(12);
+                    doc.text("Dokumentasi Kegiatan:", margin, y);
+                    y += 12;
+
+                    const gridSpacing = 6;
+                    const imageWidth = (printableWidth - gridSpacing) / 2; // Dual column grid layout
+                    const imageHeight = 65; 
+
+                    let xPos = margin;
+                    let yPos = y;
+
+                    for (let i = 0; i < r.photos.length; i++) {
+                        if (yPos + imageHeight > bottomBoundary) {
+                            doc.addPage();
+                            yPos = margin + 10;
+                            xPos = margin;
+                        }
+
+                        try {
+                            doc.addImage(r.photos[i], 'JPEG', xPos, yPos, imageWidth, imageHeight, undefined, 'FAST');
+                        } catch (imgError) {
+                            console.error("Gagal menambahkan gambar ke PDF: ", imgError);
+                            // Border fallback
+                            doc.setDrawColor(200, 200, 200);
+                            doc.rect(xPos, yPos, imageWidth, imageHeight);
+                            doc.setFontSize(8);
+                            doc.setFont("helvetica", "italic");
+                            doc.text("[Gagal memproses foto]", xPos + (imageWidth / 2) - 15, yPos + (imageHeight / 2));
+                        }
+
+                        if (i % 2 === 0) {
+                            xPos = margin + imageWidth + gridSpacing;
+                        } else {
+                            xPos = margin;
+                            yPos += imageHeight + gridSpacing;
+                        }
+                    }
+                }
+
+                doc.save(`Laporan_${r.activity.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`);
+                showToast("PDF Laporan Berhasil Diunduh!");
+
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal mengunduh PDF: " + err.message);
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
